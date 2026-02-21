@@ -1,57 +1,42 @@
 # Rise of Kingdoms Discord Notifications Bot
 
-Бот для Discord, который отслеживает количество kingdom-серверов на источнике и отправляет уведомление в канал, когда появляется новый.
+Бот отслеживает открытие новых kingdom и отправляет уведомления в Discord-канал.
 
-## Что делает бот
-- Периодически проверяет страницу (`CHECK_URL`) и ищет значение `Total Kingdoms: N`.
-- Хранит последнее значение в `state.json`.
-- При росте значения отправляет сообщение в Discord-канал.
-- На первом запуске только инициализирует состояние, без рассылки.
+## Что умеет сейчас
+- Пуллит несколько web-источников (`CHECK_URLS`) на каждом цикле.
+- Выбирает самое свежее значение `Total Kingdoms`, с опцией консенсуса (`MIN_SOURCE_AGREEMENT`).
+- Имеет быстрый канал через Discord watcher (`WATCH_CHANNEL_IDS`): если в отслеживаемом канале появляется сообщение с номером kingdom, бот реагирует сразу.
+- Не шлёт спам на первом запуске: сначала сохраняет текущее состояние.
 
-## Структура проекта
-- `bot.py` - логика бота и парсер.
-- `requirements.txt` - Python-зависимости.
-- `Dockerfile` - сборка контейнера.
-- `docker-compose.yml` - запуск контейнера с volume для состояния.
-- `data/` - локальное состояние (`state.json`).
-- `.env.example` - шаблон переменных окружения.
+## Структура
+- `bot.py` - логика бота.
+- `.env.example` - шаблон конфигурации.
+- `Dockerfile` - образ приложения.
+- `docker-compose.yml` - локальный запуск.
+- `.github/workflows/deploy.yml` - CI/CD (build + deploy).
+- `data/state.json` - последнее известное значение.
 
 ## Требования
-- Python 3.12+ (локальный запуск), или Docker + Docker Compose.
+- Python 3.12+ или Docker.
 - Discord Bot Token.
-- Права бота на чтение/отправку сообщений в целевом канале.
+- Права бота на канал уведомлений: `View Channels`, `Send Messages`, `Read Message History`.
+- Если используешь watcher: включить `MESSAGE CONTENT INTENT` в Discord Developer Portal.
 
-## Настройка Discord
-1. Создай приложение: `https://discord.com/developers/applications`
-2. Вкладка `Bot`:
-- создай бота;
-- включи `MESSAGE CONTENT INTENT` не требуется для этого проекта;
-- скопируй token.
-3. Пригласи бота на сервер с правами:
-- `View Channels`
-- `Send Messages`
-- `Read Message History`
-- `Mention Everyone` (только если нужен `@everyone`)
-4. Включи Developer Mode в Discord и скопируй ID канала.
-
-## Настройка окружения
-1. Скопируй шаблон:
+## Быстрый старт
+1. Создай `.env` из шаблона:
 ```bash
 # Windows (cmd)
 copy .env.example .env
 # Linux/macOS
 cp .env.example .env
 ```
-2. Заполни `.env`:
-- `DISCORD_TOKEN` - токен бота.
-- `CHANNEL_ID` - ID канала.
-- `CHECK_EVERY_MIN` - интервал проверки в минутах.
-- `CHECK_URL` - источник для парсинга.
-- `STATE_PATH` - путь к файлу состояния.
-- `MENTION_EVERYONE=true|false` - упоминать ли `@everyone`.
-- `DEBUG_DUMPS=true|false` - сохранять HTML-дампы при ошибке парсинга.
 
-## Локальный запуск (Python)
+2. Заполни минимум:
+- `DISCORD_TOKEN`
+- `CHANNEL_ID`
+- `CHECK_URLS`
+
+3. Локальный запуск:
 ```bash
 python -m venv .venv
 # Windows
@@ -63,28 +48,46 @@ pip install -r requirements.txt
 python bot.py
 ```
 
-## Запуск через Docker Compose
+4. Docker запуск:
 ```bash
 docker compose up --build -d
 docker compose logs -f
 ```
 
-Остановка:
-```bash
-docker compose down
+## Основные переменные `.env`
+- `DISCORD_TOKEN` - токен бота.
+- `CHANNEL_ID` - ID канала, куда отправлять уведомления.
+- `CHECK_EVERY_MIN` - интервал опроса web-источников.
+- `CHECK_TIMEOUT_SEC` - timeout на HTTP запрос.
+- `CHECK_URLS` - источники через запятую.
+- `MIN_SOURCE_AGREEMENT` - сколько источников должны дать одинаковое значение (1 = максимально быстро).
+- `WATCH_CHANNEL_IDS` - ID каналов (через запятую), которые бот слушает как быстрый источник.
+- `MESSAGE_PATTERNS` - кастомные regex-паттерны через `||` для извлечения номера kingdom из сообщений.
+- `MIN_KINGDOM_ID`, `MAX_KINGDOM_ID` - фильтр диапазона kingdom ID.
+- `STATE_PATH` - путь к state-файлу.
+- `MENTION_EVERYONE` - добавлять ли `@everyone`.
+- `DEBUG_DUMPS` - сохранять HTML-дампы при проблеме парсинга.
+
+## Рекомендуемая стратегия источников
+Для скорости и стабильности:
+- `CHECK_URLS`: основной источник `https://heroscroll.com/`.
+- `MIN_SOURCE_AGREEMENT=1`: минимальная задержка.
+- `WATCH_CHANNEL_IDS`: каналы комьюнити/анонсов, где новости появляются раньше.
+
+Пример:
+```env
+CHECK_URLS=https://heroscroll.com/
+MIN_SOURCE_AGREEMENT=1
+WATCH_CHANNEL_IDS=123456789012345678,987654321098765432
 ```
 
-## Как проверить, что всё работает
-- В логах должен быть вход бота в Discord.
-- На первом цикле в логах появится `Initial state saved`.
-- При увеличении `Total Kingdoms` бот отправит уведомление в канал.
-
-## Возможные проблемы
-- `DISCORD_TOKEN is not set`: не заполнен `.env`.
-- `CHANNEL_ID is not set or invalid`: неверный ID канала.
-- `Unable to access channel`: у бота нет прав или бот не добавлен на сервер.
-- `Could not parse 'Total Kingdoms'`: структура страницы изменилась. Включи `DEBUG_DUMPS=true` и проверь сохранённые HTML рядом с `STATE_PATH`.
+## Troubleshooting
+- `DISCORD_TOKEN is not set`: не заполнен токен.
+- `CHANNEL_ID is not set or invalid`: неверный ID.
+- `Unable to access notification channel`: бот не видит канал/нет прав.
+- `All web sources failed`: недоступны источники или изменилась структура страницы.
+- Watcher не реагирует: проверь `MESSAGE CONTENT INTENT`, `WATCH_CHANNEL_IDS` и regex-паттерны.
 
 ## Безопасность
-- Не коммить `.env` в репозиторий.
-- Если токен бота уже светился где-либо (чат, скриншоты, публичные файлы), его нужно перевыпустить в Discord Developer Portal.
+- Не коммить `.env`.
+- Если токен где-то светился, перевыпусти его в Discord Developer Portal.
