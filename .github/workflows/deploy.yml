@@ -65,7 +65,11 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.vars.outputs.image }}
-
+      - name: Fail fast if VPS_HOST missing
+        if: ${{ secrets.VPS_HOST == '' }}
+        run: |
+          echo "VPS_HOST secret is empty or not доступен этому workflow"
+          exit 1
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -104,3 +108,4 @@ jobs:
             docker compose pull
             docker compose up -d --remove-orphans
             docker image prune -f
+      
