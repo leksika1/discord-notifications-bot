@@ -1,5 +1,6 @@
 services:
   rok-bot:
+    image: ${IMAGE:-rok-bot:local}
     build: .
     command: ["python", "-u", "bot.py"]
     restart: unless-stopped
