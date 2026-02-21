@@ -1,0 +1,14 @@
+services:
+  rok-bot:
+    build: .
+    command: ["python", "-u", "bot.py"]
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      - STATE_PATH=/app/data/state.json
+      - PYTHONUNBUFFERED=1
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
