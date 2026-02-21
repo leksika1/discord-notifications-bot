@@ -33,12 +33,12 @@ jobs:
       - name: Run tests (if present)
         run: |
           if ls -1 test*.py 1>/dev/null 2>&1 || [ -d tests ]; then pytest -q; else echo "No tests"; fi
-          
+
       - name: Check secrets exist
-      run: |
-        echo "VPS_HOST set? ${{ secrets.VPS_HOST != '' }}"
-        echo "VPS_USER set? ${{ secrets.VPS_USER != '' }}"
-        echo "SSH_PRIVATE_KEY set? ${{ secrets.SSH_PRIVATE_KEY != '' }}"
+        run: |
+          echo "VPS_HOST set? ${{ secrets.VPS_HOST != '' }}"
+          echo "VPS_USER set? ${{ secrets.VPS_USER != '' }}"
+          echo "SSH_PRIVATE_KEY set? ${{ secrets.SSH_PRIVATE_KEY != '' }}"
 
   build_and_deploy:
     runs-on: ubuntu-latest
